@@ -2,6 +2,24 @@
 
 A Jellyfin plugin to automatically manage and clean your media libraries based on configurable rules.
 
+- [Requirements](#requirements)
+- [Features](#features)
+- [Configuration](#configuration)
+  - [Library Settings](#library-settings)
+  - [Accessing Configuration](#accessing-configuration)
+- [How It Works](#how-it-works)
+  - [Favorites Protection](#favorites-protection)
+    - [Protection Levels](#protection-levels)
+  - [Leaving Soon Collections](#leaving-soon-collections)
+  - [Deletion Process](#deletion-process)
+  - [Scheduled Task](#scheduled-task)
+- [Library Cleanup Page](#library-cleanup-page)
+- [Installation](#installation)
+- [Best Practices](#best-practices)
+- [License](#license)
+- [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
+
 ## Requirements
 
 - **Jellyfin Version**: 10.11.2 or later
@@ -119,11 +137,6 @@ Access the cleanup interface at **Dashboard** → **Plugins** → **Awesome Libr
 - **Dashboard** → **Plugins** → **All** → **Awesome Library Cleaner** → **Install**
 - **Dashboard** → **Restart**
 - **Dashboard** → **Plugins** → **Awesome Library Cleaner** → **Settings**
-
-## Requirements
-
-- Jellyfin 10.11.2 or later
-- .NET 9.0 runtime
 
 ## Best Practices
 
