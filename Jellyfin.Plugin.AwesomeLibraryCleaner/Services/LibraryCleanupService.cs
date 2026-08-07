@@ -241,8 +241,10 @@ public class LibraryCleanupService : ILibraryCleanupService
             return true;
         }
 
-        // For episodes and seasons, check if parent series is a favorite
-        if (item is Episode episode && episode.Series != null && favoriteItemIds.Contains(episode.SeriesId))
+        // For episodes and seasons, check if parent series is a favorite.
+        // Guard on the SeriesId so the series is not lazily resolved (and potentially
+        // missing) just to answer the favorite check.
+        if (item is Episode episode && episode.SeriesId != Guid.Empty && favoriteItemIds.Contains(episode.SeriesId))
         {
             return true;
         }
@@ -250,7 +252,7 @@ public class LibraryCleanupService : ILibraryCleanupService
         if (item is Season season)
         {
             // Check if parent series is favorited
-            if (season.Series != null && favoriteItemIds.Contains(season.SeriesId))
+            if (season.SeriesId != Guid.Empty && favoriteItemIds.Contains(season.SeriesId))
             {
                 return true;
             }
