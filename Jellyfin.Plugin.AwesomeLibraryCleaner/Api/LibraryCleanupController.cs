@@ -168,8 +168,7 @@ public class LibraryCleanupController : ControllerBase
         {
             var collections = _libraryManager.GetItemList(new MediaBrowser.Controller.Entities.InternalItemsQuery
             {
-                IncludeItemTypes = new[] { BaseItemKind.BoxSet },
-                Recursive = false
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet }
             }).OfType<BoxSet>().Where(c => c.Name.Equals(collectionName, StringComparison.OrdinalIgnoreCase));
 
             return collections.FirstOrDefault();
