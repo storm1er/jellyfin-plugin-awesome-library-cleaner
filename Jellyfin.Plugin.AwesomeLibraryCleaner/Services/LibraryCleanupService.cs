@@ -148,63 +148,23 @@ public class LibraryCleanupService : ILibraryCleanupService
         foreach (var item in items)
         {
             // Filter based on element reference for TV shows
-            if (item is Episode episode && settings.ElementReferenceOption != ElementReference.Episode)
+            if (!CleanupDecisionEngine.ShouldProcessItem(item, settings.ElementReferenceOption))
             {
-                _logger.LogDebug("Skip episode {ItemName} from series {SeriesName} - element reference is set to {ElementReference}", item.Name, episode.SeriesName, settings.ElementReferenceOption);
-                continue; // Skip episodes if not processing per episode
-            }
-
-            if (item is Season season && settings.ElementReferenceOption != ElementReference.Season)
-            {
-                _logger.LogDebug("Skip season {ItemName} from series {SeriesName} - element reference is set to {ElementReference}", item.Name, season.SeriesName, settings.ElementReferenceOption);
-                continue; // Skip seasons if not processing per season
-            }
-
-            if (item is Series && settings.ElementReferenceOption != ElementReference.WholeSeries)
-            {
-                _logger.LogDebug("Skip series {ItemName} - element reference is set to {ElementReference}", item.Name, settings.ElementReferenceOption);
-                continue; // Skip series if not processing whole series
+                _logger.LogDebug(
+                    "Skip item {ItemName} - element reference is set to {ElementReference}",
+                    item.Name,
+                    settings.ElementReferenceOption);
+                continue;
             }
 
             // Skip favorites if configured
             if (settings.ExcludeFavorites && IsFavorite(item, favoriteItemIds))
             {
-                if (item is Episode favEpisode)
-                {
-                    _logger.LogInformation("Excluding episode {ItemName} from series {SeriesName} - marked as favorite", item.Name, favEpisode.SeriesName);
-                }
-                else if (item is Season favSeason)
-                {
-                    _logger.LogInformation("Excluding season {ItemName} from series {SeriesName} - marked as favorite", item.Name, favSeason.SeriesName);
-                }
-                else
-                {
-                    _logger.LogInformation("Excluding item {ItemName} - marked as favorite", item.Name);
-                }
-
+                _logger.LogInformation("Excluding item {ItemName} - marked as favorite", item.Name);
                 continue;
             }
 
-            // For movies, always include
-            if (item is Movie)
-            {
-                result.Add(item);
-                continue;
-            }
-
-            // For TV shows, only add the appropriate level
-            if (item is Episode && settings.ElementReferenceOption == ElementReference.Episode)
-            {
-                result.Add(item);
-            }
-            else if (item is Season && settings.ElementReferenceOption == ElementReference.Season)
-            {
-                result.Add(item);
-            }
-            else if (item is Series && settings.ElementReferenceOption == ElementReference.WholeSeries)
-            {
-                result.Add(item);
-            }
+            result.Add(item);
         }
 
         return result;
@@ -441,62 +401,16 @@ public class LibraryCleanupService : ILibraryCleanupService
         }
     }
 
-    private bool ShouldBeInLeavingSoon(BaseItem item, LibrarySettings settings)
-    {
-        if (settings.LeavingSoonDays <= 0)
-        {
-            return false;
-        }
-
-        var referenceDate = GetReferenceDate(item, settings.TimeReferenceOption);
-        var daysSinceReference = (DateTime.UtcNow - referenceDate).TotalDays;
-
-        var result = daysSinceReference >= settings.LeavingSoonDays && daysSinceReference < settings.DeletionDays;
-
-        LogItemDateInfo(item, settings, referenceDate, daysSinceReference, result ? "SendToLeavingSoon" : "NotLeavingSoon");
-
-        return result;
-    }
-
-    private bool ShouldBeDeleted(BaseItem item, LibrarySettings settings)
-    {
-        if (settings.DeletionDays <= 0)
-        {
-            return false;
-        }
-
-        var referenceDate = GetReferenceDate(item, settings.TimeReferenceOption);
-        var daysSinceReference = (DateTime.UtcNow - referenceDate).TotalDays;
-
-        var result = daysSinceReference >= settings.DeletionDays;
-
-        LogItemDateInfo(item, settings, referenceDate, daysSinceReference, result ? "SendToDelete" : "NotToDelete");
-
-        return result;
-    }
-
-    private DateTime GetReferenceDate(BaseItem item, TimeReference timeReference)
-    {
-        return timeReference switch
-        {
-            TimeReference.FileAddedDate => item.DateCreated,
-            TimeReference.LatestFileUpdateDate => item.DateModified,
-            TimeReference.LatestWatchDate => item.DateLastSaved,
-            _ => item.DateCreated
-        };
-    }
-
-    private void LogItemDateInfo(BaseItem item, LibrarySettings settings, DateTime usedReferenceDate, double daysSinceReference, string status)
+    private void LogItemDateInfo(BaseItem item, LibrarySettings settings, DateTime usedReferenceDate, double daysSinceReference, string status, DateTime? latestPlayedDate)
     {
         // Get all available dates
         var fileAddedDate = item.DateCreated;
         var fileModifiedDate = item.DateModified;
-        var lastWatchDate = item.DateLastSaved;
 
         // Calculate days for each date
         var daysSinceAdded = (DateTime.UtcNow - fileAddedDate).TotalDays;
         var daysSinceModified = (DateTime.UtcNow - fileModifiedDate).TotalDays;
-        var daysSinceWatched = (DateTime.UtcNow - lastWatchDate).TotalDays;
+        var daysSinceWatched = latestPlayedDate.HasValue ? (DateTime.UtcNow - latestPlayedDate.Value).TotalDays : (double?)null;
 
         // Determine which reference is configured
         var configuredReference = settings.TimeReferenceOption switch
