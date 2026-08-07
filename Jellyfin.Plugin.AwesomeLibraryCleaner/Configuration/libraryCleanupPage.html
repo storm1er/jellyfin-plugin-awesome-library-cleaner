@@ -179,10 +179,11 @@
                 items.forEach(function(item) {
                     var dateInfo = '';
                     if (item.DateCreated) {
+                        var watchedInfo = item.LastPlayedDate ? 'Watched: ' + formatDaysAgo(item.LastPlayedDate) : 'Watched: Never';
                         dateInfo = '<br><span style="font-size: 0.9em; color: #888;">' +
                             'Added: ' + formatDaysAgo(item.DateCreated) + ' | ' +
                             'Modified: ' + formatDaysAgo(item.DateModified) + ' | ' +
-                            'Watched: ' + formatDaysAgo(item.DateLastSaved) +
+                            watchedInfo +
                             '</span>';
                     }
 
@@ -245,7 +246,10 @@
                     .catch(function(error) {
                         console.error('Error loading pending deletions:', error);
                         Dashboard.hideLoadingMsg();
-                        Dashboard.alert('Failed to load pending deletions. Please try again.');
+                        Dashboard.alert({
+                            title: 'Failed to Load Pending Deletions',
+                            message: 'The pending deletions could not be loaded: ' + (error && error.message ? error.message : 'unknown error') + '. Run the cleanup task first so items are added to "To Delete" collections.'
+                        });
                     });
             }
 

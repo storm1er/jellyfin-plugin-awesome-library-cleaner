@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -120,19 +121,25 @@ public class LibraryCleanupService : ILibraryCleanupService
                 favoriteItemIds = await GetAllFavoriteItemIdsAsync().ConfigureAwait(false);
             }
 
+            // The library manager loads user data onto returned items, so the latest play
+            // dates can be computed without additional queries.
+            var latestPlayedDates = settings.TimeReferenceOption == TimeReference.LatestWatchDate
+                ? CleanupDecisionEngine.BuildLatestPlayedDates(items)
+                : new Dictionary<Guid, DateTime?>();
+
             // Group items for processing
             var itemsToProcess = GetItemsToProcess(items, settings, favoriteItemIds);
 
             // Process leaving soon
             if (settings.LeavingSoonDays > 0)
             {
-                await ProcessLeavingSoonAsync(library, settings, itemsToProcess, cancellationToken).ConfigureAwait(false);
+                await ProcessLeavingSoonAsync(library, settings, itemsToProcess, latestPlayedDates, cancellationToken).ConfigureAwait(false);
             }
 
             // Process deletions
             if (settings.DeletionDays > 0)
             {
-                await ProcessDeletionsAsync(library, settings, itemsToProcess, cancellationToken).ConfigureAwait(false);
+                await ProcessDeletionsAsync(library, settings, itemsToProcess, latestPlayedDates, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -240,6 +247,7 @@ public class LibraryCleanupService : ILibraryCleanupService
         BaseItem library,
         LibrarySettings settings,
         List<BaseItem> items,
+        IReadOnlyDictionary<Guid, DateTime?> latestPlayedDates,
         CancellationToken cancellationToken)
     {
         try
@@ -249,31 +257,32 @@ public class LibraryCleanupService : ILibraryCleanupService
             _logger.LogInformation("Updating 'Leaving Soon' collection: '{CollectionName}'...", collectionName);
 
             // Find items that should be in leaving soon
-            var leavingSoonItems = items.Where(item => ShouldBeInLeavingSoon(item, settings)).ToList();
+            var leavingSoonItems = new List<BaseItem>();
+            foreach (var item in items)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var latestPlayedDate = latestPlayedDates.TryGetValue(item.Id, out var date) ? date : null;
+                var referenceDate = CleanupDecisionEngine.GetReferenceDate(item, settings.TimeReferenceOption, latestPlayedDate);
+                var daysSinceReference = CleanupDecisionEngine.GetDaysSinceReference(item, settings.TimeReferenceOption, latestPlayedDate);
+                var shouldBeInLeavingSoon = CleanupDecisionEngine.ShouldBeInLeavingSoon(item, settings, latestPlayedDate);
+
+                if (shouldBeInLeavingSoon)
+                {
+                    leavingSoonItems.Add(item);
+                }
+
+                LogItemDateInfo(item, settings, referenceDate, daysSinceReference, shouldBeInLeavingSoon ? "SendToLeavingSoon" : "NotLeavingSoon", latestPlayedDate);
+            }
 
             _logger.LogInformation("Found {Count} items for leaving soon", leavingSoonItems.Count);
 
-            // Clean up existing collection
-            await RemoveCollectionAsync(collectionName).ConfigureAwait(false);
+            var desiredItemIds = leavingSoonItems.Select(i => i.Id).ToHashSet().ToList();
+            await UpdateCollectionAsync(collectionName, desiredItemIds, cancellationToken).ConfigureAwait(false);
 
-            // If no items should be in leaving soon, stop here
-            if (leavingSoonItems.Count == 0)
-            {
-                return;
-            }
-
-            // Get or create the leaving soon collection
-            var collection = await CreateCollectionAsync(collectionName).ConfigureAwait(false);
-
-            if (collection == null)
-            {
-                _logger.LogError("Failed to get or create collection {CollectionName}", collectionName);
-                return;
-            }
-
-            var targetItemIds = leavingSoonItems.Select(i => i.Id).ToHashSet().ToList();
-            await _collectionManager.AddToCollectionAsync(collection.Id, targetItemIds).ConfigureAwait(false);
-            _logger.LogInformation("Added {Count} items to leaving soon collection", targetItemIds.Count);
             _logger.LogInformation("Leaving soon collection updated successfully");
         }
         catch (Exception ex)
@@ -286,11 +295,31 @@ public class LibraryCleanupService : ILibraryCleanupService
         BaseItem library,
         LibrarySettings settings,
         List<BaseItem> items,
+        IReadOnlyDictionary<Guid, DateTime?> latestPlayedDates,
         CancellationToken cancellationToken)
     {
         try
         {
-            var itemsToDelete = items.Where(item => ShouldBeDeleted(item, settings)).ToList();
+            var itemsToDelete = new List<BaseItem>();
+            foreach (var item in items)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var latestPlayedDate = latestPlayedDates.TryGetValue(item.Id, out var date) ? date : null;
+                var referenceDate = CleanupDecisionEngine.GetReferenceDate(item, settings.TimeReferenceOption, latestPlayedDate);
+                var daysSinceReference = CleanupDecisionEngine.GetDaysSinceReference(item, settings.TimeReferenceOption, latestPlayedDate);
+                var shouldBeDeleted = CleanupDecisionEngine.ShouldBeDeleted(item, settings, latestPlayedDate);
+
+                if (shouldBeDeleted)
+                {
+                    itemsToDelete.Add(item);
+                }
+
+                LogItemDateInfo(item, settings, referenceDate, daysSinceReference, shouldBeDeleted ? "SendToDelete" : "NotToDelete", latestPlayedDate);
+            }
 
             _logger.LogInformation("Found {Count} items to delete", itemsToDelete.Count);
 
@@ -426,7 +455,7 @@ public class LibraryCleanupService : ILibraryCleanupService
             "ConfiguredReference: {ConfiguredReference} ({UsedDate:yyyy-MM-dd}, {DaysSince:F1} days) | " +
             "FileAddedDate: {FileAddedDate:yyyy-MM-dd} ({DaysSinceAdded:F1} days) | " +
             "FileModifiedDate: {FileModifiedDate:yyyy-MM-dd} ({DaysSinceModified:F1} days) | " +
-            "LastWatchDate: {LastWatchDate:yyyy-MM-dd} ({DaysSinceWatched:F1} days) | " +
+            "LastWatchDate: {LastWatchDate:yyyy-MM-dd} ({DaysSinceWatched} days) | " +
             "LeavingSoonThreshold: {LeavingSoonDays} days | DeletionThreshold: {DeletionDays} days | " +
             "Item: {ItemName}",
             status,
@@ -437,8 +466,8 @@ public class LibraryCleanupService : ILibraryCleanupService
             daysSinceAdded,
             fileModifiedDate,
             daysSinceModified,
-            lastWatchDate,
-            daysSinceWatched,
+            latestPlayedDate,
+            daysSinceWatched.HasValue ? daysSinceWatched.Value.ToString("F1", CultureInfo.InvariantCulture) : "Never",
             settings.LeavingSoonDays,
             settings.DeletionDays,
             item.Name);
