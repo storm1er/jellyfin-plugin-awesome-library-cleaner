@@ -343,33 +343,99 @@ public class LibraryCleanupService : ILibraryCleanupService
 
                 _logger.LogInformation("Updating 'To Delete' collection: '{CollectionName}'...", collectionName);
 
-                // Clean up existing collection
-                await RemoveCollectionAsync(collectionName).ConfigureAwait(false);
+                var desiredItemIds = itemsToDelete.Select(i => i.Id).ToHashSet().ToList();
+                await UpdateCollectionAsync(collectionName, desiredItemIds, cancellationToken).ConfigureAwait(false);
 
-                // If no items to delete, stop here
-                if (itemsToDelete.Count == 0)
-                {
-                    return;
-                }
-
-                // Get or create the to delete collection
-                var collection = await CreateCollectionAsync(collectionName).ConfigureAwait(false);
-
-                if (collection == null)
-                {
-                    _logger.LogError("Failed to get or create collection {CollectionName}", collectionName);
-                    return;
-                }
-
-                var targetItemIds = itemsToDelete.Select(i => i.Id).ToHashSet().ToList();
-                await _collectionManager.AddToCollectionAsync(collection.Id, targetItemIds).ConfigureAwait(false);
-                _logger.LogInformation("Added {Count} items to to delete collection", targetItemIds.Count);
                 _logger.LogInformation("To delete collection updated successfully");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing deletions for library {LibraryName}", library.Name);
+        }
+    }
+
+    private async Task UpdateCollectionAsync(string collectionName, List<Guid> desiredItemIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var collection = FindCollectionByName(collectionName);
+
+            if (collection == null)
+            {
+                if (desiredItemIds.Count == 0)
+                {
+                    _logger.LogInformation("Collection {CollectionName} does not exist and is not needed", collectionName);
+                    return;
+                }
+
+                collection = await CreateCollectionAsync(collectionName).ConfigureAwait(false);
+                if (collection == null)
+                {
+                    _logger.LogError("Failed to create collection {CollectionName}", collectionName);
+                    return;
+                }
+
+                await _collectionManager.AddToCollectionAsync(collection.Id, desiredItemIds).ConfigureAwait(false);
+                _logger.LogInformation("Created collection {CollectionName} with {Count} items", collectionName, desiredItemIds.Count);
+                return;
+            }
+
+            var currentItemIds = collection.GetLinkedChildren().Select(i => i.Id).ToHashSet();
+
+            var toAdd = desiredItemIds.Except(currentItemIds).ToList();
+            var toRemove = currentItemIds.Except(desiredItemIds).ToList();
+
+            if (toAdd.Count > 0)
+            {
+                await _collectionManager.AddToCollectionAsync(collection.Id, toAdd).ConfigureAwait(false);
+            }
+
+            if (toRemove.Count > 0)
+            {
+                await _collectionManager.RemoveFromCollectionAsync(collection.Id, toRemove).ConfigureAwait(false);
+            }
+
+            if (desiredItemIds.Count == 0)
+            {
+                await RemoveCollectionAsync(collectionName).ConfigureAwait(false);
+                _logger.LogInformation("Removed empty collection {CollectionName}", collectionName);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Updated collection {CollectionName} with {Count} items (+{AddedCount}/-{RemovedCount})",
+                    collectionName,
+                    desiredItemIds.Count,
+                    toAdd.Count,
+                    toRemove.Count);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating collection {CollectionName}", collectionName);
+        }
+    }
+
+    private BoxSet? FindCollectionByName(string collectionName)
+    {
+        try
+        {
+            var collections = _libraryManager.GetItemList(new MediaBrowser.Controller.Entities.InternalItemsQuery
+            {
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet }
+            }).OfType<BoxSet>().Where(c => c.Name.Equals(collectionName, StringComparison.OrdinalIgnoreCase));
+
+            return collections.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding collection: {CollectionName}", collectionName);
+            return null;
         }
     }
 
@@ -398,14 +464,7 @@ public class LibraryCleanupService : ILibraryCleanupService
     {
         try
         {
-            // Try to find existing collection
-            var existingCollections = _libraryManager.GetItemList(new MediaBrowser.Controller.Entities.InternalItemsQuery
-            {
-                IncludeItemTypes = new[] { BaseItemKind.BoxSet },
-                Recursive = false
-            }).OfType<BoxSet>().Where(c => c.Name.Equals(collectionName, StringComparison.OrdinalIgnoreCase));
-
-            var collection = existingCollections.FirstOrDefault();
+            var collection = FindCollectionByName(collectionName);
 
             if (collection == null)
             {
