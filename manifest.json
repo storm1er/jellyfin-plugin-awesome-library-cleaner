@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "changelog": "- v1.1.0.0",
+        "targetAbi": "10.11.0.0",
+        "version": "1.1.0.0",
+        "sourceUrl": "https://github.com/storm1er/jellyfin-plugin-awesome-library-cleaner/releases/download/1.1.0.0/awesome-library-cleaner_1.1.0.0.zip",
+        "checksum": "ad7669ab6a81fd618b41b2ae673ff09a",
+        "timestamp": "2026-08-07T19:38:00"
+      },
+      {
         "changelog": "- Initial release",
         "targetAbi": "10.11.0.0",
         "version": "1.0.0.0",
