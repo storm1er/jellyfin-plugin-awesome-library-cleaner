@@ -24,6 +24,12 @@ A Jellyfin plugin to automatically manage and clean your media libraries based o
 
 - **Jellyfin Version**: 10.11.2 or later
 
+## Supported Libraries
+
+This plugin currently supports **Movies** and **TV Shows** libraries only. Other library types
+(music, books, photos, mixed content, etc.) are ignored by the plugin and will not be cleaned or
+listed in the configuration page. This is intentional and not a bug.
+
 ## Features
 
 - **Per-Library Configuration**: Configure cleanup rules individually for each movie or TV show library
