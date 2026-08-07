@@ -58,10 +58,22 @@ public class LibraryCleanupService : ILibraryCleanupService
         if (enabledSettings.Count == 0)
         {
             _logger.LogInformation("No enabled libraries, skipping cleanup");
-            return;
         }
 
         _logger.LogInformation("Processing {Count} enabled libraries", enabledSettings.Count);
+
+        // Remove collections that belong to libraries which are now disabled so the
+        // "Leaving Soon" and "To Delete" collections do not become stale.
+        var disabledSettings = config.LibrarySettings.Where(s => !s.Enabled).ToList();
+        foreach (var disabled in disabledSettings)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            await RemoveStaleCollectionsAsync(disabled, cancellationToken).ConfigureAwait(false);
+        }
 
         for (int i = 0; i < enabledSettings.Count; i++)
         {
@@ -71,10 +83,54 @@ public class LibraryCleanupService : ILibraryCleanupService
             }
 
             var settings = enabledSettings[i];
-            var progressPercent = (double)i / enabledSettings.Count * 100;
+            var progressPercent = (double)(i + 1) / enabledSettings.Count * 100;
             progress?.Report(progressPercent);
 
             await ProcessLibraryAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Removes the "Leaving Soon" and "To Delete" collections that were created for a library
+    /// that is now disabled, so the collections do not remain stale. Only the collection folders
+    /// are removed; member media items are never touched.
+    /// </summary>
+    /// <param name="settings">The disabled library settings.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private async Task RemoveStaleCollectionsAsync(LibrarySettings settings, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(settings.LibraryId))
+            {
+                return;
+            }
+
+            var libraryName = settings.LibraryName;
+            if (Guid.TryParse(settings.LibraryId, out var libraryId))
+            {
+                var library = _libraryManager.GetItemById(libraryId);
+                if (library != null && !string.IsNullOrEmpty(library.Name))
+                {
+                    libraryName = library.Name;
+                }
+            }
+
+            var leavingSoonCollectionName = $"{libraryName} - {settings.LeavingSoonCollectionName}";
+            var toDeleteCollectionName = $"{libraryName} - To Delete";
+
+            _logger.LogInformation(
+                "Library {LibraryName} is disabled, removing stale collections '{LeavingSoon}' and '{ToDelete}'",
+                libraryName,
+                leavingSoonCollectionName,
+                toDeleteCollectionName);
+
+            await RemoveCollectionAsync(leavingSoonCollectionName).ConfigureAwait(false);
+            await RemoveCollectionAsync(toDeleteCollectionName).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing stale collections for disabled library {LibraryId}", settings.LibraryId);
         }
     }
 
