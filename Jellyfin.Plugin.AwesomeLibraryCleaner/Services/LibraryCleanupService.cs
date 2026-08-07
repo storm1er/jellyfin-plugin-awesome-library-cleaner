@@ -281,7 +281,7 @@ public class LibraryCleanupService : ILibraryCleanupService
     private async Task<HashSet<Guid>> GetAllFavoriteItemIdsAsync()
     {
         var favoriteIds = new HashSet<Guid>();
-        var users = _userManager.Users.ToList();
+        var users = _userManager.GetUsers().ToList();
 
         foreach (var user in users)
         {
