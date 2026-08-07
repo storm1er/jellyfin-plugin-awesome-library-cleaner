@@ -45,6 +45,8 @@ For each library, you can configure:
    - File Added Date
    - Latest File Update Date
    - Latest Watch Date
+   - Note: When "Latest Watch Date" is used, items that have never been played fall back to
+     their file added date (Date Created) so they are still considered for cleanup.
 3. **Leaving Soon After (Days)**: Number of days before media appears in "leaving soon" collection (0 to disable)
 4. **Leaving Soon Collection Name**: Display name for the leaving soon collection
 5. **Delete After (Days)**: Number of days before media is deleted (must be >= leaving soon days)

@@ -93,7 +93,7 @@ public class LibraryCleanupController : ControllerBase
                         Path = item.Path,
                         DateCreated = item.DateCreated,
                         DateModified = item.DateModified,
-                        DateLastSaved = item.DateLastSaved
+                        LastPlayedDate = Services.CleanupDecisionEngine.GetOwnLatestPlayedDate(item)
                     }).ToList();
 
                     response.Libraries.Add(new LibraryDeletionInfo
@@ -282,9 +282,9 @@ public class MediaItemInfo
     public DateTime DateModified { get; set; }
 
     /// <summary>
-    /// Gets or sets the date the item was last watched.
+    /// Gets or sets the date the item was last watched by any user, or <c>null</c> if never watched.
     /// </summary>
-    public DateTime DateLastSaved { get; set; }
+    public DateTime? LastPlayedDate { get; set; }
 }
 
 /// <summary>

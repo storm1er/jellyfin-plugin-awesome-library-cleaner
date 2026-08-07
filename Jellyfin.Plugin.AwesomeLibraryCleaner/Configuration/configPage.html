@@ -176,7 +176,7 @@
                     '<option value="0" ' + (timeRef === 0 ? 'selected' : '') + '>File Added Date</option>' +
                     '<option value="1" ' + (timeRef === 1 ? 'selected' : '') + '>Latest File Update Date</option>' +
                     '<option value="2" ' + (timeRef === 2 ? 'selected' : '') + '>Latest Watch Date</option>' +
-                    '</select><div class="fieldDescription">The date used for period calculations</div></div>' +
+                    '</select><div class="fieldDescription">The date used for period calculations. "Latest Watch Date" uses the most recent play across all users; items that were never played fall back to their date added.</div></div>' +
                     '<div class="inputContainer settings-row">' +
                     '<label class="inputLabel inputLabelUnfocused">Leaving Soon After (Days)</label>' +
                     '<input class="library-leaving-days" type="number" is="emby-input" min="0" value="' + leavingSoonDays + '" />' +
