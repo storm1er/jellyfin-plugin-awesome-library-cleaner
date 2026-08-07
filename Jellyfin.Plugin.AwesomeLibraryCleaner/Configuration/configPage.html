@@ -162,7 +162,7 @@
                 const excludeFavs = settings ? (settings.ExcludeFavorites !== false) : true;
                 const elementRef = settings ? mapElementReferenceToValue(settings.ElementReferenceOption) : 2;
 
-                return '<div class="library-section" data-library-id="' + libraryId + '">' +
+                return '<div class="library-section" data-library-id="' + libraryId + '" data-library-name="' + library.Name + '">' +
                     '<h1 class="library-header">' + library.Name + ' (' + library.CollectionType + ')</h1>' +
                     '<div class="checkboxContainer checkboxContainer-withDescription">' +
                     '<label class="emby-checkbox-label">' +
@@ -265,49 +265,52 @@
                     Dashboard.showLoadingMsg();
 
                     ApiClient.getPluginConfiguration(ALCConfig.pluginUniqueId).then(function(config) {
-                        config.LibrarySettings = [];
+                        if (!config.LibrarySettings) {
+                            config.LibrarySettings = [];
+                        }
 
                         document.querySelectorAll('.library-section').forEach(function(section) {
                             var libraryId = section.getAttribute('data-library-id');
                             var enabled = section.querySelector('.library-enabled').checked;
 
-                            if (enabled) {
-                                var timeRef = parseInt(section.querySelector('.library-time-ref').value);
-                                var leavingDays = parseInt(section.querySelector('.library-leaving-days').value);
-                                var leavingName = section.querySelector('.library-leaving-name').value;
-                                var deletionDays = parseInt(section.querySelector('.library-deletion-days').value);
-                                var deleteAuto = section.querySelector('.library-delete-auto').checked;
-                                var excludeFavs = section.querySelector('.library-exclude-favs').checked;
-                                var elementRefEl = section.querySelector('.library-element-ref');
-                                var elementRef = elementRefEl ? parseInt(elementRefEl.value) : 2;
+                            var timeRef = parseInt(section.querySelector('.library-time-ref').value);
+                            var leavingDays = parseInt(section.querySelector('.library-leaving-days').value);
+                            var leavingName = section.querySelector('.library-leaving-name').value;
+                            var deletionDays = parseInt(section.querySelector('.library-deletion-days').value);
+                            var deleteAuto = section.querySelector('.library-delete-auto').checked;
+                            var excludeFavs = section.querySelector('.library-exclude-favs').checked;
+                            var elementRefEl = section.querySelector('.library-element-ref');
+                            var elementRef = elementRefEl ? parseInt(elementRefEl.value) : 2;
 
-                                // Only validate if both are enabled (> 0)
-                                if (leavingDays > 0 && deletionDays > 0 && deletionDays < leavingDays) {
-                                    Dashboard.hideLoadingMsg();
-                                    Dashboard.alert('Deletion days must be >= leaving soon days when both are enabled for library: ' + libraryId);
-                                    return false;
-                                }
+                            // Only validate if both are enabled (> 0)
+                            if (leavingDays > 0 && deletionDays > 0 && deletionDays < leavingDays) {
+                                Dashboard.hideLoadingMsg();
+                                Dashboard.alert({
+                                    title: 'Invalid Settings',
+                                    message: 'Deletion days must be >= leaving soon days when both are enabled for library: ' + libraryId + '.'
+                                });
+                                return false;
+                            }
 
-                                // Find existing settings or create new
-                                var existingIndex = config.LibrarySettings.findIndex(function(s) { return s.LibraryId === libraryId; });
-                                var settings = {
-                                    LibraryId: libraryId,
-                                    LibraryName: '',
-                                    Enabled: enabled,
-                                    TimeReferenceOption: timeRef,
-                                    LeavingSoonDays: leavingDays,
-                                    LeavingSoonCollectionName: leavingName,
-                                    DeletionDays: deletionDays,
-                                    DeleteAutomation: deleteAuto,
-                                    ExcludeFavorites: excludeFavs,
-                                    ElementReferenceOption: elementRef
-                                };
+                            // Find existing settings or create new
+                            var existingIndex = config.LibrarySettings.findIndex(function(s) { return s.LibraryId === libraryId; });
+                            var settings = {
+                                LibraryId: libraryId,
+                                LibraryName: section.getAttribute('data-library-name') || '',
+                                Enabled: enabled,
+                                TimeReferenceOption: timeRef,
+                                LeavingSoonDays: leavingDays,
+                                LeavingSoonCollectionName: leavingName,
+                                DeletionDays: deletionDays,
+                                DeleteAutomation: deleteAuto,
+                                ExcludeFavorites: excludeFavs,
+                                ElementReferenceOption: elementRef
+                            };
 
-                                if (existingIndex >= 0) {
-                                    config.LibrarySettings[existingIndex] = settings;
-                                } else {
-                                    config.LibrarySettings.push(settings);
-                                }
+                            if (existingIndex >= 0) {
+                                config.LibrarySettings[existingIndex] = settings;
+                            } else {
+                                config.LibrarySettings.push(settings);
                             }
                         });
 
