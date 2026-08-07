@@ -112,7 +112,10 @@
                     if (!cleanupTask) {
                         button.disabled = false;
                         button.querySelector('span').textContent = originalText;
-                        Dashboard.alert('Could not find the cleanup task. Please try again or check the Scheduled Tasks page.');
+                        Dashboard.alert({
+                            title: 'Task Not Found',
+                            message: 'The cleanup task "AwesomeLibraryCleanerTask" was not found. This can happen if the plugin is not enabled. Enable it in Dashboard → My Plugins, then try again.'
+                        });
                         return;
                     }
 
@@ -125,7 +128,10 @@
                 }).then(function() {
                     button.disabled = false;
                     button.querySelector('span').textContent = originalText;
-                    Dashboard.alert('Cleanup task has been started. You can monitor progress in Dashboard → Scheduled Tasks.');
+                    Dashboard.alert({
+                        title: 'Cleanup Started',
+                        message: 'The cleanup task has been started. Monitor progress in Dashboard → Scheduled Tasks.'
+                    });
                     // Refresh the pending deletions list after a short delay
                     setTimeout(function() {
                         loadPendingDeletions();
@@ -134,7 +140,10 @@
                     console.error('Error starting cleanup task:', error);
                     button.disabled = false;
                     button.querySelector('span').textContent = originalText;
-                    Dashboard.alert('Failed to start cleanup task. Please try again or check the Scheduled Tasks page.');
+                    Dashboard.alert({
+                        title: 'Failed to Start Cleanup',
+                        message: 'The cleanup task could not be started: ' + (error && error.message ? error.message : 'unknown error') + '. Check the server logs and that the task is enabled in Scheduled Tasks.'
+                    });
                 });
             }
 
@@ -266,12 +275,18 @@
                     contentType: 'application/json'
                 }).then(function() {
                     Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Item deleted successfully.');
+                    Dashboard.alert({
+                        title: 'Item Deleted',
+                        message: 'The item was permanently deleted.'
+                    });
                     loadPendingDeletions();
                 }).catch(function(error) {
                     console.error('Error deleting item:', error);
                     Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Failed to delete item. Please try again.');
+                    Dashboard.alert({
+                        title: 'Failed to Delete Item',
+                        message: 'The item could not be deleted: ' + (error && error.message ? error.message : 'unknown error') + '. Check the server logs for details.'
+                    });
                 });
             }
 
@@ -292,12 +307,18 @@
                     contentType: 'application/json'
                 }).then(function() {
                     Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Items deleted successfully.');
+                    Dashboard.alert({
+                        title: 'Items Deleted',
+                        message: selectedItems.size + ' items were permanently deleted.'
+                    });
                     loadPendingDeletions();
                 }).catch(function(error) {
                     console.error('Error deleting items:', error);
                     Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Failed to delete items. Please try again.');
+                    Dashboard.alert({
+                        title: 'Failed to Delete Items',
+                        message: 'The selected items could not be deleted: ' + (error && error.message ? error.message : 'unknown error') + '. Check the server logs for details.'
+                    });
                 });
             }
 

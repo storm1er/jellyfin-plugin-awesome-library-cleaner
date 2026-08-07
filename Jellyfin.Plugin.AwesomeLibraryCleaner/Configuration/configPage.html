@@ -84,7 +84,10 @@
                     if (!cleanupTask) {
                         button.disabled = false;
                         button.querySelector('span').textContent = originalText;
-                        Dashboard.alert('Could not find the cleanup task. Please try again or check the Scheduled Tasks page.');
+                        Dashboard.alert({
+                            title: 'Task Not Found',
+                            message: 'The cleanup task "AwesomeLibraryCleanerTask" was not found. This can happen if the plugin is not enabled. Enable it in Dashboard → My Plugins, then try again.'
+                        });
                         return;
                     }
 
@@ -97,12 +100,18 @@
                 }).then(function() {
                     button.disabled = false;
                     button.querySelector('span').textContent = originalText;
-                    Dashboard.alert('Cleanup task has been started. You can monitor progress in Dashboard → Scheduled Tasks.');
+                    Dashboard.alert({
+                        title: 'Cleanup Started',
+                        message: 'The cleanup task has been started. Monitor progress in Dashboard → Scheduled Tasks.'
+                    });
                 }).catch(function(error) {
                     console.error('Error starting cleanup task:', error);
                     button.disabled = false;
                     button.querySelector('span').textContent = originalText;
-                    Dashboard.alert('Failed to start cleanup task. Please try again or check the Scheduled Tasks page.');
+                    Dashboard.alert({
+                        title: 'Failed to Start Cleanup',
+                        message: 'The cleanup task could not be started: ' + (error && error.message ? error.message : 'unknown error') + '. Check the server logs and that the task is enabled in Scheduled Tasks.'
+                    });
                 });
             }
 
@@ -255,7 +264,10 @@
                     }).catch(function(error) {
                         console.error('Error loading libraries:', error);
                         Dashboard.hideLoadingMsg();
-                        Dashboard.alert('Failed to load libraries. Please refresh the page.');
+                        Dashboard.alert({
+                            title: 'Failed to Load Libraries',
+                            message: 'The library list could not be loaded: ' + (error && error.message ? error.message : 'unknown error') + '. Verify the server is running and that the plugin has been reloaded after installation.'
+                        });
                     });
                 });
 
