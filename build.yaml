@@ -1,7 +1,7 @@
 ---
 name: "Awesome Library Cleaner"
 guid: "eede8c45-dff4-4aee-8d7a-f5972a91348e"
-version: "1.0.0.0"
+version: "1.1.0.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Awesome Library Cleaner helps you clean up your media library"
