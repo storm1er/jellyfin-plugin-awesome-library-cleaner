@@ -8,7 +8,7 @@ overview: "Awesome Library Cleaner helps you clean up your media library"
 description: >
   Awesome Library Cleaner (or ALC) is a Jellyfin plugin that helps you clean up your media library by removing old or unwanted items.
 category: "General"
-owner: "jellyfin"
+owner: "storm1er"
 artifacts:
 - "Jellyfin.Plugin.AwesomeLibraryCleaner.dll"
 changelog: "Initial release"
